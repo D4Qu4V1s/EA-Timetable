@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>EA_Timetable</title>
+<style>
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: arial, sans-serif;
+}
+td, th {
+  border: 5px solid powderblue;
+  text-align: left;
+  padding: 12px;
+  min-height: 50px;
+  vertical-align: top;
+}
+.time-col {
+  font-weight: bold;
+  background-color: #f0f8ff;
+  width: 120px;
+  vertical-align: middle;
+}
+tbody tr:nth-child(odd) {
+  background-color: #FFB86A;
+}
+tbody tr:nth-child(even) {
+  background-color: #ffffff;
+}
+tbody tr:first-child {
+  background-color: #FFB86A !important;
+}
+h2 {
+  color: #FFB86A;
+}
+tbody tr td:not(.time-col):hover,
+#timetableGrid tr td:not(.time-col):hover {
+  background-color: #e0e0e0 !important;
+  cursor: pointer;
+}
+.controls-panel {
+  background-color: #f0f8ff;
+  border: 2px solid powderblue;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 20px;
+  font-family: arial, sans-serif;
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.controls-panel label {
+  font-weight: bold;
+  color: #2b2b2b;
+}
+.controls-panel select, .controls-panel input[type="text"] {
+  padding: 6px;
+  border: 2px solid powderblue;
+  border-radius: 4px;
+}
+.controls-panel button {
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  font-weight: bold;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.btn-fill {
+  background-color: #FFB86A;
+}
+.btn-fill:hover {
+  background-color: #e09e53;
+}
+.btn-clear {
+  background-color: #ff6b6b;
+}
+.btn-clear:hover {
+  background-color: #e05353;
+}
+.btn-action {
+  background-color: powderblue;
+  color: #2b2b2b !important;
+}
+.btn-action:hover {
+  background-color: #b0e0e6;
+}
+.btn-share {
+  background-color: #4caf50;
+}
+.btn-share:hover {
+  background-color: #43a047;
+}
+.event-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f0f8ff;
+  padding: 4px 8px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  border: 1px solid powderblue;
+  font-size: 14px;
+}
+.event-del-btn {
+  background: none;
+  border: none;
+  color: #ff6b6b;
+  font-weight: bold;
+  cursor: pointer;
+  margin-left: 8px;
+  padding: 0 4px;
+}
+.event-del-btn:hover {
+  color: #e05353;
+}
+</style>
+</head>
+<body>
+
+<a href="InstructionsPage.html">
+<img src="image (4).png" width="315px">
+.<a>
+
+<div class="controls-panel">
+  <div>
+    <label for="newTimeInput">Custom Time:</label>
+    <input type="text" id="newTimeInput" placeholder="e.g., 8:00-9:00">
+    <button class="btn-action" onclick="addCustomTime()">Add Time Slot</button>
+    <button class="btn-clear" onclick="removeSelectedTime()">Delete Selected Time</button>
+  </div>
+</div>
+
+<div class="controls-panel">
+  <div>
+    <label for="daySelect">Day:</label>
+    <select id="daySelect">
+      <option value="1">Sunday</option>
+      <option value="2">Monday</option>
+      <option value="3">Tuesday</option>
+      <option value="4">Wednesday</option>
+      <option value="5">Thursday</option>
+      <option value="6">Friday</option>
+      <option value="7">Saturday</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="timeSelect">Time Slot:</label>
+    <select id="timeSelect">
+    </select>
+  </div>
+
+  <div>
+    <label for="subjectInput">Subject:</label>
+    <input type="text" id="subjectInput" placeholder="Type subject here...">
+  </div>
+
+  <button class="btn-fill" onclick="updateTimetable()">Fill Cell</button>
+  <button class="btn-clear" onclick="clearCell()">Clear Cell</button>
+  <button class="btn-share" onclick="generateShareLink()">Generate Share Link</button>
+</div>
+
+<table id="timetableGrid">
+  <thead>
+    <tr>
+      <th>Time</th>
+      <th>Sunday</th>
+      <th>Monday</th>
+      <th>Tuesday</th>
+      <th>Wednesday</th>
+      <th>Thursday</th>
+      <th>Friday</th>
+      <th>Saturday</th>
+    </tr>
+  </thead>
+  <tbody id="timetableBody">
+  </tbody>
+</table>
+
+<script>
+let timeSlots = ["9:00-10:00", "10:00-11:00", "11:00-12:00", "12:00-1:00", "1:00-2:00", "2:00-3:00"];
+let scheduleData = {};
+
+window.addEventListener('DOMContentLoaded', loadData);
+
+function renderTimeControlsAndRows() {
+  const timeSelect = document.getElementById('timeSelect');
+  const tbody = document.getElementById('timetableBody');
+  
+  const currentSelection = timeSelect.value;
+  timeSelect.innerHTML = '';
+  tbody.innerHTML = '';
+  
+  timeSlots.forEach((slot, index) => {
+    const option = document.createElement('option');
+    option.value = index;
+    option.innerText = slot;
+    timeSelect.appendChild(option);
+    
+    const tr = document.createElement('tr');
+    
+    const timeTd = document.createElement('td');
+    timeTd.className = 'time-col';
+    timeTd.innerText = slot;
+    tr.appendChild(timeTd);
+    
+    tr.appendChild(document.createTextNode('\n    '));
+    
+    for (let day = 1; day <= 7; day++) {
+      const td = document.createElement('td');
+      const key = `${slot}_${day}`;
+      
+      if (scheduleData[key] && Array.isArray(scheduleData[key])) {
+        scheduleData[key].forEach((eventText, eventIndex) => {
+          const itemDiv = document.createElement('div');
+          itemDiv.className = 'event-item';
+          
+          const textSpan = document.createElement('span');
+          textSpan.innerText = eventText;
+          itemDiv.appendChild(textSpan);
+          
+          const delBtn = document.createElement('button');
+          delBtn.className = 'event-del-btn';
+          delBtn.innerText = '×';
+          delBtn.onclick = function() {
+            removeSingleEvent(key, eventIndex);
+          };
+          itemDiv.appendChild(delBtn);
+          
+          td.appendChild(itemDiv);
+        });
+      }
+      
+      tr.appendChild(td);
+      tr.appendChild(document.createTextNode('\n    '));
+    }
+    
+    tbody.appendChild(tr);
+  });
+  
+  if (timeSlots[currentSelection]) {
+    timeSelect.value = currentSelection;
+  }
+}
+
+function addCustomTime() {
+  const input = document.getElementById('newTimeInput');
+  const value = input.value.trim();
+  
+  if (value && !timeSlots.map(t => t.toLowerCase()).includes(value.toLowerCase())) {
+    timeSlots.push(value);
+    input.value = '';
+    renderTimeControlsAndRows();
+    saveData();
+  }
+}
+
+function removeSelectedTime() {
+  const timeSelect = document.getElementById('timeSelect');
+  const index = parseInt(timeSelect.value);
+  
+  if (!isNaN(index) && timeSlots[index]) {
+    const removedSlot = timeSlots[index];
+    timeSlots.splice(index, 1);
+    
+    for (let day = 1; day <= 7; day++) {
+      delete scheduleData[`${removedSlot}_${day}`];
+    }
+    
+    renderTimeControlsAndRows();
+    saveData();
+  }
+}
+
+function updateTimetable() {
+  const dayIndex = parseInt(document.getElementById('daySelect').value);
+  const slotIndex = parseInt(document.getElementById('timeSelect').value);
+  const textValue = document.getElementById('subjectInput').value.trim();
+  
+  if (isNaN(slotIndex) || !timeSlots[slotIndex] || !textValue) return;
+  
+  const slotName = timeSlots[slotIndex];
+  const key = `${slotName}_${dayIndex}`;
+  
+  if (!scheduleData[key] || !Array.isArray(scheduleData[key])) {
+    scheduleData[key] = [];
+  }
+  
+  scheduleData[key].push(textValue);
+  document.getElementById('subjectInput').value = '';
+  
+  renderTimeControlsAndRows();
+  saveData();
+}
+
+function removeSingleEvent(key, eventIndex) {
+  if (scheduleData[key] && Array.isArray(scheduleData[key])) {
+    scheduleData[key].splice(eventIndex, 1);
+    if (scheduleData[key].length === 0) {
+      delete scheduleData[key];
+    }
+    renderTimeControlsAndRows();
+    saveData();
+  }
+}
+
+function clearCell() {
+  const dayIndex = parseInt(document.getElementById('daySelect').value);
+  const slotIndex = parseInt(document.getElementById('timeSelect').value);
+  
+  if (isNaN(slotIndex) || !timeSlots[slotIndex]) return;
+  
+  const slotName = timeSlots[slotIndex];
+  const key = `${slotName}_${dayIndex}`;
+  
+  delete scheduleData[key];
+  
+  renderTimeControlsAndRows();
+  saveData();
+}
+
+function generateShareLink() {
+  const payload = {
+    slots: timeSlots,
+    content: scheduleData
+  };
+  const base64Data = btoa(encodeURIComponent(JSON.stringify(payload)));
+  const shareUrl = window.location.origin + window.location.pathname + '?data=' + base64Data;
+  
+  navigator.clipboard.writeText(shareUrl).then(() => {
+    alert("Shareable URL copied to your clipboard!");
+  }).catch(() => {
+    alert("Could not copy link automatically. URL: " + shareUrl);
+  });
+}
+
+function saveData() {
+  localStorage.setItem('ea_timetable_slots', JSON.stringify(timeSlots));
+  localStorage.setItem('ea_timetable_content', JSON.stringify(scheduleData));
+}
+
+function loadData() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlData = urlParams.get('data');
+  
+  if (urlData) {
+    try {
+      const decodedPayload = JSON.parse(decodeURIComponent(atob(urlData)));
+      if (decodedPayload.slots) timeSlots = decodedPayload.slots;
+      if (decodedPayload.content) scheduleData = decodedPayload.content;
+      normalizeDataStructure();
+      renderTimeControlsAndRows();
+      saveData();
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    } catch (e) {
+      console.error("Invalid share link data format.");
+    }
+  }
+  
+  const savedSlots = localStorage.getItem('ea_timetable_slots');
+  const savedContent = localStorage.getItem('ea_timetable_content');
+  
+  if (savedSlots) {
+    timeSlots = JSON.parse(savedSlots);
+  }
+  if (savedContent) {
+    try {
+      scheduleData = JSON.parse(savedContent);
+      normalizeDataStructure();
+    } catch(e) {
+      scheduleData = {};
+    }
+  }
+  
+  renderTimeControlsAndRows();
+}
+
+function normalizeDataStructure() {
+  Object.keys(scheduleData).forEach(key => {
+    if (!Array.isArray(scheduleData[key])) {
+      if (typeof scheduleData[key] === 'string' && scheduleData[key].trim() !== '') {
+        scheduleData[key] = [scheduleData[key]];
+      } else {
+        scheduleData[key] = [];
+      }
+    }
+  });
+}
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
